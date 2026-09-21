@@ -1,0 +1,24 @@
+# Backend / Maven
+/backend/target/
+/.mvn/
+/mvnw
+/mvnw.cmd
+
+# IDE
+/.idea/
+*.iml
+
+# logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local authenticated browser session and diagnostic captures
+/playwright-profile/
+/facebook_login_error.png
+
+# Frontend
+/frontend/node_modules/
+/frontend/dist/

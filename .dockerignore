@@ -1,0 +1,10 @@
+.git
+.idea
+playwright-profile
+facebook_login_error.png
+backend/target
+backend/.idea
+frontend/node_modules
+frontend/dist
+frontend/.vite
+*.log

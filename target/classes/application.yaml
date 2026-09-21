@@ -1,0 +1,24 @@
+server:
+  port: 8080
+spring:
+  h2:
+    console:
+      enabled: true
+  datasource:
+    url: "jdbc:h2:mem:db;DB_CLOSE_DELAY=-1"
+    driverClassName: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+logging:
+  level:
+    org.springframework: INFO
+facebook:
+  # A persistent browser profile is used so you can sign in manually once.
+  # Do not put Facebook credentials in this file.
+  profile-directory: playwright-profile
+  headless: false
+  navigation-timeout-ms: 45000
+  max-comments-limit: 1000

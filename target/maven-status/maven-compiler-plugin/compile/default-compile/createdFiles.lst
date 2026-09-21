@@ -1,0 +1,4 @@
+com\example\extracttool\config\FacebookProperties.class
+com\example\extracttool\config\AppConfiguration.class
+com\example\extracttool\config\BrowserSession.class
+com\example\extracttool\validation\FacebookPostUrlValidator.class

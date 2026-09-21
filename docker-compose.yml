@@ -1,0 +1,52 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: leadflow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: leadflow
+      MYSQL_USER: leadflow
+      MYSQL_PASSWORD: leadflow_secret
+      MYSQL_ROOT_PASSWORD: root_secret_change_me
+    volumes:
+      - leadflow_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_secret_change_me"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    container_name: leadflow-backend
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/leadflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_DRIVER: com.mysql.cj.jdbc.Driver
+      DB_USERNAME: leadflow
+      DB_PASSWORD: leadflow_secret
+      FACEBOOK_HEADLESS: "true"
+      FACEBOOK_PROFILE_DIRECTORY: /app/playwright-profile
+    volumes:
+      - ./playwright-profile:/app/playwright-profile
+    expose:
+      - "8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: leadflow-nginx
+    restart: unless-stopped
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  leadflow_mysql_data:
