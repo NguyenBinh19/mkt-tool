@@ -10,6 +10,7 @@ import java.time.Instant;
 public class CommentDTO {
     private String id; // facebook comment id
     private String author;
+    private String authorUrl;
     private String message;
     private Instant createdAt;
     private String parentId;

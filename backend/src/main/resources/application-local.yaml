@@ -1,0 +1,17 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    url: "${DB_URL:jdbc:mysql://localhost:3306/leadflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}"
+    driverClassName: com.mysql.cj.jdbc.Driver
+    username: "${DB_USERNAME:leadflow}"
+    password: "${DB_PASSWORD:leadflow_secret}"
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+facebook:
+  profile-directory: "${FACEBOOK_PROFILE_DIRECTORY:../playwright-profile}"
+  headless: "${FACEBOOK_HEADLESS:false}"
+  navigation-timeout-ms: 45000
+  max-comments-limit: 1000

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export function usePersistentState(key, initialValue) {
   const [value, setValue] = useState(() => {
@@ -9,8 +9,26 @@ export function usePersistentState(key, initialValue) {
       return initialValue;
     }
   });
+  const previousKey = useRef(key);
+  const skipPersist = useRef(false);
 
   useEffect(() => {
+    if (previousKey.current === key) return;
+    previousKey.current = key;
+    skipPersist.current = true;
+    try {
+      const stored = localStorage.getItem(key);
+      setValue(stored ? JSON.parse(stored) : initialValue);
+    } catch {
+      setValue(initialValue);
+    }
+  }, [key, initialValue]);
+
+  useEffect(() => {
+    if (skipPersist.current) {
+      skipPersist.current = false;
+      return;
+    }
     localStorage.setItem(key, JSON.stringify(value));
   }, [key, value]);
 

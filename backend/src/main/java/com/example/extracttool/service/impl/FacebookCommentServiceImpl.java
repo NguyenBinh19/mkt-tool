@@ -64,11 +64,18 @@ public class FacebookCommentServiceImpl implements FacebookCommentService {
         page.navigate("https://www.facebook.com/", new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
     }
 
+    @Override
+    public synchronized List<com.example.extracttool.model.dto.FacebookPostDTO> searchPosts(String keyword, int limit, boolean recentPosts) {
+        if (keyword == null || keyword.isBlank()) return List.of();
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        return extractor.searchPosts(keyword.trim(), safeLimit, recentPosts);
+    }
+
     private void persistNewComments(String postUrl, List<CommentDTO> comments) {
         List<Comment> fresh = new ArrayList<>();
         for (CommentDTO dto : comments) {
             if (!commentRepository.existsByPostUrlAndFbId(postUrl, dto.getId())) {
-                fresh.add(Comment.builder().fbId(dto.getId()).postUrl(postUrl).author(dto.getAuthor())
+                fresh.add(Comment.builder().fbId(dto.getId()).postUrl(postUrl).author(dto.getAuthor()).authorUrl(dto.getAuthorUrl())
                         .message(dto.getMessage()).createdAt(dto.getCreatedAt()).parentFbId(dto.getParentId()).build());
             }
         }

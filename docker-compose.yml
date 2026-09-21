@@ -22,6 +22,7 @@ services:
     container_name: leadflow-backend
     restart: unless-stopped
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:mysql://mysql:3306/leadflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_DRIVER: com.mysql.cj.jdbc.Driver
       DB_USERNAME: leadflow

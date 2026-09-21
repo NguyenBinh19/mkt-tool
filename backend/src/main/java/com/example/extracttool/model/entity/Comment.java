@@ -19,6 +19,8 @@ public class Comment {
     private String fbId;
     private String postUrl;
     private String author;
+    @Column(name = "author_url", length = 2048)
+    private String authorUrl;
 
     @Lob
     private String message;

@@ -2,6 +2,7 @@ package com.example.extracttool.controller;
 
 import com.example.extracttool.model.dto.ExtractRequestDTO;
 import com.example.extracttool.model.dto.ExtractResponseDTO;
+import com.example.extracttool.model.dto.FacebookSearchRequest;
 import com.example.extracttool.service.FacebookCommentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,5 +25,10 @@ public class FacebookCommentController {
     public ResponseEntity<String> openBrowserForLogin() {
         service.openBrowserForLogin();
         return ResponseEntity.ok("Browser opened. Sign in to Facebook there, complete any checkpoint, then call /api/facebook/extract.");
+    }
+
+    @PostMapping("/search")
+    public ResponseEntity<java.util.List<com.example.extracttool.model.dto.FacebookPostDTO>> searchPosts(@Valid @RequestBody FacebookSearchRequest request) {
+        return ResponseEntity.ok(service.searchPosts(request.getKeyword(), request.getLimit() == null ? 20 : request.getLimit(), request.isRecentPosts()));
     }
 }
