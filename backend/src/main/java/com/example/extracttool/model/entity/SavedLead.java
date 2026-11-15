@@ -13,6 +13,7 @@ public class SavedLead {
     @Column(name = "external_comment_id", nullable = false, length = 120) private String externalCommentId;
     @Column(length = 250) private String author;
     @Column(length = 2048) private String authorUrl;
+    @Column(name = "post_url", length = 2048) private String postUrl;
     @Lob private String message;
     private String parentCommentId;
     private Instant commentCreatedAt;

@@ -11,7 +11,16 @@ spring:
       ddl-auto: update
     open-in-view: false
 facebook:
-  profile-directory: "${FACEBOOK_PROFILE_DIRECTORY:../playwright-profile}"
+  # Use a fresh local profile; the previous playwright-profile remains untouched for recovery.
+  profile-directory: "${FACEBOOK_PROFILE_DIRECTORY:../playwright-profile-v2}"
   headless: "${FACEBOOK_HEADLESS:false}"
   navigation-timeout-ms: 45000
   max-comments-limit: 1000
+  debug-port: "${FACEBOOK_DEBUG_PORT:9222}"
+  max-concurrent-tabs: "${FACEBOOK_MAX_CONCURRENT_TABS:1}"
+security:
+  token-ttl-hours: "${AUTH_TOKEN_TTL_HOURS:24}"
+bootstrap:
+  admin:
+    email: "${BOOTSTRAP_ADMIN_EMAIL:admin@leadflow.local}"
+    password: "${BOOTSTRAP_ADMIN_PASSWORD:admin123-local}"

@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,9 +44,14 @@ public class AccessControlController {
     }
 
     @PostMapping("/access-requests")
-    public Map<String, Object> requestAccess(@RequestBody Map<String, String> body, HttpServletRequest request) {
-        FeatureAccessRequest item = access.requestFeature(current(request), body.get("feature"));
+    public Map<String, Object> requestAccess(@Valid @RequestBody FeatureRequest body, HttpServletRequest request) {
+        FeatureAccessRequest item = access.requestFeature(current(request), body.feature());
         return requestMap(item);
+    }
+
+    @GetMapping("/access-requests/mine")
+    public List<Map<String, Object>> myRequests(HttpServletRequest request) {
+        return access.requestsFor(current(request)).stream().map(AccessControlController::requestMapWithUser).toList();
     }
 
     @GetMapping("/admin/users")
@@ -107,6 +113,17 @@ public class AccessControlController {
         return Map.of("id", item.getId(), "feature", item.getFeatureKey(), "status", item.getStatus());
     }
 
-    public record RegisterRequest(@NotBlank String name, @Email @NotBlank String email, @NotBlank String password) { }
+    private static Map<String, Object> requestMapWithUser(FeatureAccessRequest item) {
+        return Map.of(
+                "id", item.getId(),
+                "userId", item.getUser().getId(),
+                "userName", item.getUser().getName(),
+                "feature", item.getFeatureKey(),
+                "status", item.getStatus()
+        );
+    }
+
+    public record RegisterRequest(@NotBlank @Size(max = 120) String name, @Email @NotBlank @Size(max = 254) String email, @NotBlank @Size(min = 12, max = 72) String password) { }
     public record LoginRequest(@Email @NotBlank String email, @NotBlank String password) { }
+    public record FeatureRequest(@NotBlank @Size(max = 80) String feature) { }
 }

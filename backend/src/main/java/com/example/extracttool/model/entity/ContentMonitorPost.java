@@ -6,11 +6,12 @@ import java.time.Instant;
 
 @Getter @Setter @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "content_monitor_posts", uniqueConstraints = @UniqueConstraint(columnNames = {"workspace_id", "post_url"}))
+@Table(name = "content_monitor_posts", uniqueConstraints = @UniqueConstraint(columnNames = {"workspace_id", "post_url_hash"}))
 public class ContentMonitorPost {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "workspace_id") private Workspace workspace;
     @Column(name = "post_url", nullable = false, length = 2048) private String postUrl;
+    @Column(name = "post_url_hash", nullable = false, length = 64) private String postUrlHash;
     @Column(length = 250) private String author;
     @Lob private String content;
     @Column(nullable = false) private boolean starred;

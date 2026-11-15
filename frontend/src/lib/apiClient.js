@@ -35,6 +35,19 @@ export const authApi = {
   me: (token) => request('/auth/me', { token })
 };
 
+function normalizeAccessRequest(item) {
+  return { ...item, tool: item.feature };
+}
+
+export const accessApi = {
+  requestFeature: (feature, token) => request('/access-requests', json('POST', { feature }, token)).then(normalizeAccessRequest),
+  myRequests: (token) => request('/access-requests/mine', { token }).then((items) => items.map(normalizeAccessRequest)),
+  users: (token) => request('/admin/users', { token }),
+  pendingRequests: (token) => request('/admin/access-requests', { token }).then((items) => items.map(normalizeAccessRequest)),
+  decideUser: (id, approved, token) => request(`/admin/users/${id}/${approved ? 'approve' : 'reject'}`, json('POST', {}, token)),
+  decideRequest: (id, approved, token) => request(`/admin/access-requests/${id}/${approved ? 'approve' : 'reject'}`, json('POST', {}, token)).then(normalizeAccessRequest)
+};
+
 export const workspaceApi = {
   list: (token) => request('/workspaces', { token }),
   create: (payload, token) => request('/workspaces', json('POST', payload, token)),
@@ -45,6 +58,8 @@ export const workspaceApi = {
   removeLead: (workspaceId, leadId, token) => request(`/workspaces/${workspaceId}/leads/${leadId}`, { method: 'DELETE', token }),
   clearLeads: (id, token) => request(`/workspaces/${id}/leads`, { method: 'DELETE', token }),
   history: (id, token) => request(`/workspaces/${id}/history`, { token }),
+  historyDetail: (workspaceId, historyId, token) => request(`/workspaces/${workspaceId}/history/${historyId}`, { token }),
+  suggestedComments: (id, token) => request(`/workspaces/${id}/suggested-comments`, { token }),
   addHistory: (id, payload, token) => request(`/workspaces/${id}/history`, json('POST', payload, token)),
   clearHistory: (id, token) => request(`/workspaces/${id}/history`, { method: 'DELETE', token }),
   monitor: (id, token) => request(`/workspaces/${id}/monitor`, { token }),
@@ -55,7 +70,14 @@ export const workspaceApi = {
 };
 
 export const facebookApi = {
-  openBrowser: () => request('/facebook/browser'),
-  searchPosts: (payload) => request('/facebook/search', json('POST', payload)),
-  extractComments: (payload) => request('/facebook/extract', json('POST', payload))
+  openBrowser: (token) => request('/facebook/browser/open', { method: 'POST', token }),
+  browserStatus: (token) => request('/facebook/browser/status', { token }),
+  retryBrowser: (token) => request('/facebook/browser/retry', { method: 'POST', token }),
+  searchPosts: (payload, token) => request('/facebook/search', json('POST', payload, token)),
+  extractComments: (payload, token) => request('/facebook/extract', json('POST', payload, token)),
+  submitExtractionJob: (payload, token) => request('/facebook/extract-jobs', json('POST', payload, token)),
+  extractionJob: (id, token) => request(`/facebook/extract-jobs/${encodeURIComponent(id)}`, { token }),
+  latestExtractionJob: (workspaceId, token) => request(`/facebook/extract-jobs/latest?workspaceId=${encodeURIComponent(workspaceId)}`, { token }),
+  extractionJobs: (workspaceId, page, token) => request(`/facebook/extract-jobs?workspaceId=${encodeURIComponent(workspaceId)}&page=${page}`, { token }),
+  clearExtractionJobs: (workspaceId, token) => request(`/facebook/extract-jobs?workspaceId=${encodeURIComponent(workspaceId)}`, { method: 'DELETE', token })
 };

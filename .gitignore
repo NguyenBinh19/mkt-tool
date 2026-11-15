@@ -1,5 +1,6 @@
 # Backend / Maven
 /backend/target/
+/target/
 /.mvn/
 /mvnw
 /mvnw.cmd
@@ -16,9 +17,10 @@
 Thumbs.db
 
 # Local authenticated browser session and diagnostic captures
-/playwright-profile/
+/playwright-profile*/
 /facebook_login_error.png
 
 # Frontend
 /frontend/node_modules/
 /frontend/dist/
+/.env

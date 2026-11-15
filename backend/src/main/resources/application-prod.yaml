@@ -9,10 +9,28 @@ spring:
     password: "${DB_PASSWORD}"
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     open-in-view: false
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+security:
+  token-ttl-hours: "${AUTH_TOKEN_TTL_HOURS:24}"
+bootstrap:
+  admin:
+    email: "${BOOTSTRAP_ADMIN_EMAIL:}"
+    password: "${BOOTSTRAP_ADMIN_PASSWORD:}"
 facebook:
   profile-directory: "${FACEBOOK_PROFILE_DIRECTORY:/app/playwright-profile}"
   headless: "${FACEBOOK_HEADLESS:true}"
   navigation-timeout-ms: 45000
   max-comments-limit: 1000
+  debug-port: "${FACEBOOK_DEBUG_PORT:9222}"
+  max-concurrent-tabs: "${FACEBOOK_MAX_CONCURRENT_TABS:1}"

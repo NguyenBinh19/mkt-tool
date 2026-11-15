@@ -1,4 +1,4 @@
-const INTENT_PATTERN = /giá|bao nhiêu|inbox|tư vấn|mua|đặt|quan tâm|liên hệ|sđt|phone|ib|ship/i;
+const INTENT_PATTERN = /giá|bao nhiêu|inbox|tư vấn|mua|đặt|quan tâm|liên hệ|sđt|phone|\bib\b|ship/i;
 
 export function isPotentialLead(comment) {
   return INTENT_PATTERN.test(comment.message ?? '');

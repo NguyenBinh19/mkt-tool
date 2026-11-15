@@ -9,7 +9,9 @@ public interface AccessControlService {
     UserAccount login(String email, String password);
     UserAccount require(String token);
     void requireAdmin(UserAccount user);
+    void requireFeature(UserAccount user, String feature);
     FeatureAccessRequest requestFeature(UserAccount user, String feature);
+    List<FeatureAccessRequest> requestsFor(UserAccount user);
     List<FeatureAccessRequest> pendingRequests();
     FeatureAccessRequest decideRequest(Long id, boolean approve, UserAccount admin);
     List<UserAccount> users(UserAccount admin);

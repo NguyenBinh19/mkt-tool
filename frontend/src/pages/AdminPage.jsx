@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Icon } from '../components/ui/Icon';
 import { isPending } from '../lib/access';
 import { useI18n } from '../i18n/I18nContext';
+import { FacebookSessionCard } from '../features/admin/FacebookSessionCard';
 
-export function AdminPage({ users, requests, onDecideUser, onDecideRequest }) {
+export function AdminPage({ users, requests, onDecideUser, onDecideRequest, token }) {
   const { t } = useI18n();
   const [tab, setTab] = useState('features');
   const [query, setQuery] = useState('');
@@ -11,7 +12,7 @@ export function AdminPage({ users, requests, onDecideUser, onDecideRequest }) {
   const pendingUsers = users.filter(isPending);
   const pendingRequests = requests.filter(isPending);
   const items = (tab === 'features' ? pendingRequests : pendingUsers).filter((item) =>
-    [item.name, item.email, item.userName, item.tool].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+    [item.name, item.email, item.userName, item.tool ?? item.feature].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   function decide(item, status) {
     if (tab === 'features') onDecideRequest(item, status);
     else onDecideUser(item.id, status);
@@ -25,6 +26,7 @@ export function AdminPage({ users, requests, onDecideUser, onDecideRequest }) {
       <div><Icon name="shield" /><span>{t('admin.toolRequests')}</span><strong>{pendingRequests.length}</strong></div>
       <div><Icon name="check" /><span>{t('admin.approvedUsers')}</span><strong>{users.filter((user) => String(user.status).toUpperCase() === 'APPROVED').length}</strong></div>
     </div>
+    <FacebookSessionCard token={token} />
     <section className="approval-panel">
       <div className="approval-toolbar">
         <div className="segmented-control" aria-label={t('admin.requestType')}>
@@ -40,7 +42,7 @@ export function AdminPage({ users, requests, onDecideUser, onDecideRequest }) {
         <p>{query ? t('admin.noMatchText') : t('admin.allDoneText')}</p>
       </div> : <div className="approval-list">{items.map((item) => <article className="approval-row" key={item.id}>
         <div className="avatar">{(item.name ?? item.userName ?? 'U').slice(0, 1).toUpperCase()}</div>
-        <div className="approval-main"><strong>{tab === 'features' ? item.tool : item.name}</strong><small>{tab === 'features' ? item.userName : item.email}</small></div>
+        <div className="approval-main"><strong>{tab === 'features' ? (item.tool ?? item.feature) : item.name}</strong><small>{tab === 'features' ? item.userName : item.email}</small></div>
         <span className="status-badge pending">{t('admin.pending')}</span>
         <div className="approval-actions"><button className="ghost-button" onClick={() => decide(item, 'rejected')}>{t('admin.reject')}</button><button className="primary-button approval-button" onClick={() => decide(item, 'approved')}><Icon name="check" size={16} /> {t('admin.approve')}</button></div>
       </article>)}</div>}

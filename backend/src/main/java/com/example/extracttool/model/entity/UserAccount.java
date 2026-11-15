@@ -3,6 +3,7 @@ package com.example.extracttool.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.HashSet;
+import java.time.Instant;
 import java.util.Set;
 
 @Getter
@@ -16,7 +17,8 @@ public class UserAccount {
     @Column(nullable = false) private String name;
     @Column(nullable = false, unique = true) private String email;
     @Column(nullable = false) private String passwordHash;
-    @Column(unique = true, length = 80) private String authToken;
+    @Column(unique = true, length = 128) private String authToken;
+    private Instant authTokenExpiresAt;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private Role role = Role.USER;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private AccountStatus status = AccountStatus.PENDING;
     @ElementCollection(fetch = FetchType.EAGER)

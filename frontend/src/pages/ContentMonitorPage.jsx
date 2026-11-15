@@ -17,7 +17,7 @@ export function ContentMonitorPage({ results, history, onResultsChange, onHistor
     setLoading(true);
     setStatus(null);
     try {
-      const data = await facebookApi.searchPosts({ keyword: keyword.trim(), limit: Number(limit), recentPosts });
+      const data = await facebookApi.searchPosts({ keyword: keyword.trim(), limit: Number(limit), recentPosts }, token);
       const snapshot = await workspaceApi.saveMonitor(workspaceId, { keyword: keyword.trim(), results: data }, token);
       onResultsChange(snapshot.results);
       onHistoryChange(snapshot.history);

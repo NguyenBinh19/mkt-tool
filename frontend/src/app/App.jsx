@@ -3,16 +3,12 @@ import { DashboardPage } from '../pages/DashboardPage';
 import { AuthPage } from '../pages/AuthPage';
 import { WorkspaceHubPage } from '../pages/WorkspaceHubPage';
 import { usePersistentState } from '../hooks/usePersistentState';
-import { isPending } from '../lib/access';
+import { isAdmin } from '../lib/access';
 import { activeWorkspaceKey } from '../lib/workspaceStorage';
-import { workspaceApi } from '../lib/apiClient';
+import { accessApi, authApi, workspaceApi } from '../lib/apiClient';
 import { I18nProvider, useI18n } from '../i18n/I18nContext';
 
-const INITIAL_USERS = [];
-
 export default function App() {
-  const [users, setUsers] = usePersistentState('leadflow:users', INITIAL_USERS);
-  const [featureRequests, setFeatureRequests] = usePersistentState('leadflow:feature-requests', []);
   const [session, setSession] = usePersistentState('leadflow:session', null);
   const [language, setLanguage] = usePersistentState('leadflow:language', 'vi');
   const [theme, setTheme] = usePersistentState('leadflow:theme', 'dark');
@@ -23,40 +19,48 @@ export default function App() {
     return <I18nProvider language={language} onLanguageChange={setLanguage}><AuthPage onLogin={setSession} theme={theme} onThemeChange={setTheme} /></I18nProvider>;
   }
 
-  const currentUser = users.find((user) => user.id === session.id) ?? session;
-  function decideUser(id, status) {
-    setUsers((current) => current.map((user) => user.id === id ? { ...user, status } : user));
-  }
-  function decideRequest(request, status) {
-    setFeatureRequests((current) => current.map((item) => item.id === request.id ? { ...item, status } : item));
-    if (status === 'approved') {
-      setUsers((current) => current.map((user) => user.id === request.userId
-        ? { ...user, permissions: [...new Set([...(user.permissions ?? []), request.tool])] }
-        : user));
-    }
-  }
-  function requestFeature(tool) {
-    setFeatureRequests((current) => current.some((request) => request.userId === currentUser.id && request.tool === tool && isPending(request))
-      ? current
-      : [...current, { id: crypto.randomUUID(), userId: currentUser.id, userName: currentUser.name, tool, status: 'pending', createdAt: new Date().toISOString() }]);
-  }
-
-  return <I18nProvider language={language} onLanguageChange={setLanguage}><WorkspaceApp key={currentUser.id} user={currentUser} users={users} requests={featureRequests} onRequestFeature={requestFeature} onDecideUser={decideUser} onDecideRequest={decideRequest} onLogout={() => setSession(null)} language={language} onLanguageChange={setLanguage} theme={theme} onThemeChange={setTheme} /></I18nProvider>;
+  return <I18nProvider language={language} onLanguageChange={setLanguage}><WorkspaceApp key={session.id} session={session} onLogout={() => setSession(null)} language={language} onLanguageChange={setLanguage} theme={theme} onThemeChange={setTheme} /></I18nProvider>;
 }
 
-function WorkspaceApp({ user, users, requests, onRequestFeature, onDecideUser, onDecideRequest, onLogout, language, onLanguageChange, theme, onThemeChange }) {
+function WorkspaceApp({ session, onLogout, language, onLanguageChange, theme, onThemeChange }) {
   const { t } = useI18n();
+  const [user, setUser] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [workspaces, setWorkspaces] = useState([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = usePersistentState(activeWorkspaceKey(user.id), null);
+  const [activeWorkspaceId, setActiveWorkspaceId] = usePersistentState(activeWorkspaceKey(session.id), null);
   const [isWorkspaceReady, setIsWorkspaceReady] = useState(false);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
 
+  async function refreshAccessData(currentUser = user) {
+    if (!currentUser) return;
+    const ownRequests = await accessApi.myRequests(currentUser.token);
+    if (isAdmin(currentUser)) {
+      const [accountData, pendingData] = await Promise.all([accessApi.users(currentUser.token), accessApi.pendingRequests(currentUser.token)]);
+      setUsers(accountData);
+      setRequests(pendingData);
+    } else {
+      setUsers([]);
+      setRequests(ownRequests);
+    }
+  }
+
   useEffect(() => {
-    workspaceApi.list(user.token).then((items) => {
-      setWorkspaces(items);
-      setActiveWorkspaceId((current) => current && items.some((item) => item.id === current) ? current : null);
-    }).catch(() => onLogout());
-  }, [user.id, user.token]);
+    let active = true;
+    authApi.me(session.token).then(async (profile) => {
+      if (!active) return;
+      setUser(profile);
+      await Promise.all([
+        refreshAccessData(profile),
+        workspaceApi.list(profile.token).then((items) => {
+          if (!active) return;
+          setWorkspaces(items);
+          setActiveWorkspaceId((current) => current && items.some((item) => item.id === current) ? current : null);
+        })
+      ]);
+    }).catch(() => { if (active) onLogout(); });
+    return () => { active = false; };
+  }, [session.token]);
 
   useEffect(() => {
     if (!activeWorkspace) {
@@ -64,7 +68,22 @@ function WorkspaceApp({ user, users, requests, onRequestFeature, onDecideUser, o
       return;
     }
     setIsWorkspaceReady(true);
-  }, [activeWorkspace?.id, user.id]);
+  }, [activeWorkspace?.id, user?.id]);
+
+  async function requestFeature(tool) {
+    await accessApi.requestFeature(tool, user.token);
+    await refreshAccessData();
+  }
+
+  async function decideUser(id, status) {
+    await accessApi.decideUser(id, status === 'approved', user.token);
+    await refreshAccessData();
+  }
+
+  async function decideRequest(request, status) {
+    await accessApi.decideRequest(request.id, status === 'approved', user.token);
+    await refreshAccessData();
+  }
 
   async function createWorkspace(details) {
     const workspace = await workspaceApi.create(details, user.token);
@@ -84,6 +103,10 @@ function WorkspaceApp({ user, users, requests, onRequestFeature, onDecideUser, o
     setActiveWorkspaceId(nextWorkspace?.id ?? null);
   }
 
+  if (!user) {
+    return <main className="workspace-loading" aria-live="polite">{t('workspace.loading')}</main>;
+  }
+
   if (!activeWorkspace) {
     return <WorkspaceHubPage user={user} workspaces={workspaces} onCreate={createWorkspace} onUpdate={updateWorkspace} onDelete={deleteWorkspace} onOpen={setActiveWorkspaceId} onLogout={onLogout} theme={theme} onThemeChange={onThemeChange} />;
   }
@@ -92,5 +115,5 @@ function WorkspaceApp({ user, users, requests, onRequestFeature, onDecideUser, o
     return <main className="workspace-loading" aria-live="polite">{t('workspace.loading')}</main>;
   }
 
-  return <DashboardPage user={user} workspace={activeWorkspace} users={users} requests={requests} onRequestFeature={onRequestFeature} onDecideUser={onDecideUser} onDecideRequest={onDecideRequest} onLogout={onLogout} onManageWorkspaces={() => setActiveWorkspaceId(null)} language={language} onLanguageChange={onLanguageChange} theme={theme} onThemeChange={onThemeChange} />;
+  return <DashboardPage user={user} workspace={activeWorkspace} users={users} requests={requests} onRequestFeature={requestFeature} onDecideUser={decideUser} onDecideRequest={decideRequest} onLogout={onLogout} onManageWorkspaces={() => setActiveWorkspaceId(null)} language={language} onLanguageChange={onLanguageChange} theme={theme} onThemeChange={onThemeChange} />;
 }

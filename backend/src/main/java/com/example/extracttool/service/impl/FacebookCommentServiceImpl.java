@@ -7,18 +7,20 @@ import com.example.extracttool.model.dto.ExtractRequestDTO;
 import com.example.extracttool.model.dto.ExtractResponseDTO;
 import com.example.extracttool.model.entity.Comment;
 import com.example.extracttool.playwright.PlaywrightExtractor;
+import com.example.extracttool.playwright.FacebookAuthenticationRequiredException;
+import com.example.extracttool.playwright.FacebookBrowserNavigationException;
 import com.example.extracttool.repository.CommentRepository;
 import com.example.extracttool.service.FacebookCommentService;
 import com.example.extracttool.validation.FacebookPostUrlValidator;
-import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.options.WaitUntilState;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 @Service
+@Slf4j
 public class FacebookCommentServiceImpl implements FacebookCommentService {
     private final PlaywrightExtractor extractor;
     private final CommentRepository commentRepository;
@@ -37,7 +39,7 @@ public class FacebookCommentServiceImpl implements FacebookCommentService {
     }
 
     @Override
-    public synchronized ExtractResponseDTO extractComments(ExtractRequestDTO request) {
+    public ExtractResponseDTO extractComments(ExtractRequestDTO request) {
         String error = urlValidator.validate(request.getPostUrl());
         if (error != null) return response("error", error, List.of());
 
@@ -47,10 +49,13 @@ public class FacebookCommentServiceImpl implements FacebookCommentService {
         }
 
         try {
-            List<CommentDTO> comments = extractor.extract(request.getPostUrl().trim(), max, request.isIncludeReplies());
+            List<CommentDTO> comments = withBrowserRecovery(() ->
+                    extractor.extract(request.getPostUrl().trim(), max, request.isIncludeReplies()));
+            browserSession.markAuthenticated();
             persistNewComments(request.getPostUrl().trim(), comments);
             return response("ok", "Extracted " + comments.size() + " comment(s).", comments);
-        } catch (IllegalStateException exception) {
+        } catch (FacebookAuthenticationRequiredException exception) {
+            browserSession.markAuthenticationRequired();
             return response("authentication_required", exception.getMessage(), List.of());
         } catch (Exception exception) {
             return response("error", "Could not extract comments: " + exception.getMessage(), List.of());
@@ -58,17 +63,26 @@ public class FacebookCommentServiceImpl implements FacebookCommentService {
     }
 
     @Override
-    public synchronized void openBrowserForLogin() {
-        BrowserContext context = browserSession.context();
-        Page page = context.pages().isEmpty() ? context.newPage() : context.pages().get(0);
-        page.navigate("https://www.facebook.com/", new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+    public void openBrowserForLogin() {
+        browserSession.openLoginPage();
     }
 
     @Override
-    public synchronized List<com.example.extracttool.model.dto.FacebookPostDTO> searchPosts(String keyword, int limit, boolean recentPosts) {
+    public List<com.example.extracttool.model.dto.FacebookPostDTO> searchPosts(String keyword, int limit, boolean recentPosts) {
         if (keyword == null || keyword.isBlank()) return List.of();
         int safeLimit = Math.max(1, Math.min(limit, 50));
-        return extractor.searchPosts(keyword.trim(), safeLimit, recentPosts);
+        return withBrowserRecovery(() -> extractor.searchPosts(keyword.trim(), safeLimit, recentPosts));
+    }
+
+    private <T> T withBrowserRecovery(Supplier<T> action) {
+        try {
+            return action.get();
+        } catch (FacebookBrowserNavigationException stalledBrowser) {
+            log.warn("Facebook navigation stalled; restarting the project browser once: {}",
+                    stalledBrowser.getMessage());
+            browserSession.retry();
+            return action.get();
+        }
     }
 
     private void persistNewComments(String postUrl, List<CommentDTO> comments) {

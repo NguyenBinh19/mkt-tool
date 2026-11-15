@@ -2,9 +2,9 @@ package com.example.extracttool.playwright;
 
 import com.example.extracttool.config.BrowserSession;
 import com.example.extracttool.model.dto.CommentDTO;
-import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.springframework.stereotype.Component;
 
@@ -21,19 +21,22 @@ import com.example.extracttool.model.dto.FacebookPostDTO;
 public class PlaywrightExtractorImpl implements PlaywrightExtractor {
     private static final String COMMENT_LINKS = "a[href*='comment_id='], a[href*='/comment/'], [data-commentid], [data-comment-id]";
     private final BrowserSession browserSession;
+    private final FacebookPostNavigator navigator;
 
-    public PlaywrightExtractorImpl(BrowserSession browserSession) {
+    public PlaywrightExtractorImpl(BrowserSession browserSession, FacebookPostNavigator navigator) {
         this.browserSession = browserSession;
+        this.navigator = navigator;
     }
 
     @Override
     public List<CommentDTO> extract(String postUrl, int maxComments, boolean includeReplies) {
-        BrowserContext context = browserSession.context();
-        try (Page page = context.newPage()) {
-            page.navigate(postUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+        try (BrowserSession.TaskPage taskPage = browserSession.openTaskPage()) {
+            Page page = taskPage.page();
+            navigator.open(page, postUrl);
             page.waitForTimeout(2_500);
-            if (page.url().contains("/login") || page.locator("input[name='email']").count() > 0) {
-                throw new IllegalStateException("Facebook is not signed in. Open /api/facebook/browser first, sign in in the displayed browser, then retry.");
+            if (page.url().contains("/login") || page.url().contains("/checkpoint")
+                    || page.locator("input[name='email']").count() > 0) {
+                throw new FacebookAuthenticationRequiredException("Facebook is not signed in or requires verification in the project browser. Open the Facebook session, complete verification, then retry.");
             }
 
             dismissContentIntroPopup(page);
@@ -65,9 +68,14 @@ public class PlaywrightExtractorImpl implements PlaywrightExtractor {
 
     @Override
     public List<FacebookPostDTO> searchPosts(String keyword, int limit, boolean recentPosts) {
-        BrowserContext context = browserSession.context();
-        try (Page page = context.newPage()) {
-            page.navigate("https://www.facebook.com/", new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+        try (BrowserSession.TaskPage taskPage = browserSession.openTaskPage()) {
+            Page page = taskPage.page();
+            try {
+                page.navigate("https://www.facebook.com/", new Page.NavigateOptions()
+                        .setWaitUntil(WaitUntilState.COMMIT).setTimeout(20_000));
+            } catch (TimeoutError timeout) {
+                throw new FacebookBrowserNavigationException("Facebook Home did not start loading within 20000 ms.", timeout);
+            }
             page.waitForTimeout(1_500);
             Locator search = page.locator("input[aria-label*='Tìm kiếm'], input[aria-label*='Search'], input[placeholder*='Tìm kiếm'], input[placeholder*='Search']").first();
             search.waitFor(new Locator.WaitForOptions().setTimeout(10_000));
